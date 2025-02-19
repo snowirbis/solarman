@@ -45,7 +45,7 @@ func main() {
 	startRegister := 0x6d
 	registerCount := 3
 
-	// Read 3 registers starting from 0x16
+	// Read 3 registers starting from 0x6d
 	data, err := deye.Read(startRegister, registerCount)
 	if err != nil {
 		fmt.Println("Error reading registers:", err)

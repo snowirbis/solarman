@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	version = "1.0.2"
+// version = "1.0.2"
 )
 
 // -----------------------------------------------------------------------------
@@ -63,9 +63,7 @@ func (inv *InverterLogger) SetMeta(StartMarker byte, EndMarker byte, ReqControlC
 func (inv *InverterLogger) SetDebug(enable bool) {
 	inv.mu.Lock()
 	defer inv.mu.Unlock()
-
 	inv.DebugEnable = enable
-	return
 }
 
 func (inv *InverterLogger) Read(startReg, regCnt int) (map[int]uint16, error) {
@@ -78,8 +76,13 @@ func (inv *InverterLogger) Read(startReg, regCnt int) (map[int]uint16, error) {
 	}
 	defer conn.Close()
 
-	conn.SetReadDeadline(time.Now().Add(inv.Timeout))
-	conn.SetWriteDeadline(time.Now().Add(inv.Timeout))
+	if err := conn.SetReadDeadline(time.Now().Add(inv.Timeout)); err != nil {
+		return nil, Err(inv, "Read.net.SetReadDeadline", "failed to set read timeout", err)
+	}
+
+	if err := conn.SetWriteDeadline(time.Now().Add(inv.Timeout)); err != nil {
+		return nil, Err(inv, "Read.net.SetWriteDeadline", "failed to set write timeout", err)
+	}
 
 	requestPayload, _ := inv.NewReadPayload(uint16(startReg), uint16(regCnt)).MarshalBinary(inv)
 	requestFrame, _ := inv.NewFrame(inv.LoggerSerialN, requestPayload).MarshalBinary(inv)
@@ -120,7 +123,9 @@ func (inv *InverterLogger) Read(startReg, regCnt int) (map[int]uint16, error) {
 	res := make(map[int]uint16)
 	for i := 0; i < regCnt; i++ {
 		var val uint16
-		binary.Read(buf, binary.BigEndian, &val)
+		if err := binary.Read(buf, binary.BigEndian, &val); err != nil {
+			return nil, Err(inv, "Read.responsePayload.binary.Read", "read payload to buf failed", err)
+		}
 		res[startReg+i] = val
 	}
 
@@ -137,8 +142,13 @@ func (inv *InverterLogger) Write(startRegister int, values []int) (int, int, err
 	}
 	defer conn.Close()
 
-	conn.SetReadDeadline(time.Now().Add(inv.Timeout))
-	conn.SetWriteDeadline(time.Now().Add(inv.Timeout))
+	if err := conn.SetReadDeadline(time.Now().Add(inv.Timeout)); err != nil {
+		return 0, 0, Err(inv, "Read.net.SetReadDeadline", "failed to set read timeout", err)
+	}
+
+	if err := conn.SetWriteDeadline(time.Now().Add(inv.Timeout)); err != nil {
+		return 0, 0, Err(inv, "Read.net.SetWriteDeadline", "failed to set write timeout", err)
+	}
 
 	numRegisters := len(values)
 	registerValues := make([]uint16, numRegisters)

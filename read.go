@@ -37,15 +37,25 @@ func (inv *InverterLogger) NewReadPayload(startReg, regCount uint16) *ReadReques
 	}
 }
 
-func (r *ReadRequestPayload) marshalBusinessData() []byte {
+func (r *ReadRequestPayload) marshalBusinessData() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte(r.DeviceAddress)
 	buf.WriteByte(r.FunctionCode)
-	binary.Write(&buf, binary.BigEndian, r.StartReg)
-	binary.Write(&buf, binary.BigEndian, r.RegCount)
+
+	if err := binary.Write(&buf, binary.BigEndian, r.StartReg); err != nil {
+		return nil, fmt.Errorf("r.StartReg buf write failed - %w", err)
+	}
+
+	if err := binary.Write(&buf, binary.BigEndian, r.RegCount); err != nil {
+		return nil, fmt.Errorf("r.RegCount buf write failed - %w", err)
+	}
+
 	// Modbus CRC16 proto requirement (2 bytes, little endian)
-	binary.Write(&buf, binary.LittleEndian, calcCRC16Modbus(buf.Bytes()))
-	return buf.Bytes()
+	if err := binary.Write(&buf, binary.LittleEndian, calcCRC16Modbus(buf.Bytes())); err != nil {
+		return nil, fmt.Errorf("CRC16 buf write failed - %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (r *ReadRequestPayload) MarshalBinary(inv *InverterLogger) ([]byte, error) {
@@ -69,7 +79,14 @@ func (r *ReadRequestPayload) MarshalBinary(inv *InverterLogger) ([]byte, error) 
 	}
 
 	// Add business data (address, function, register, quantity and CRC)
-	buf.Write(r.marshalBusinessData())
+
+	businessData, err := r.marshalBusinessData()
+
+	if err != nil {
+		return nil, fmt.Errorf("r.marshalBusinessData failed - %w", err)
+	}
+
+	buf.Write(businessData)
 
 	return buf.Bytes(), nil
 }

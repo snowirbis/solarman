@@ -12,7 +12,7 @@ func Err(inv *InverterLogger, point string, op string, err error) error {
 }
 
 func Debug(inv *InverterLogger, point string, op string, frame []byte) {
-	if inv.DebugEnable == true {
+	if inv.DebugEnable {
 		fmt.Printf("DEBUG::%s [%d] %s: ", point, inv.LoggerSerialN, op)
 		for _, b := range frame {
 			fmt.Printf("%02x ", b)

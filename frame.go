@@ -47,10 +47,23 @@ func (f *Frame) MarshalBinary(inv *InverterLogger) ([]byte, error) {
 	var buf bytes.Buffer
 
 	buf.WriteByte(inv.Meta.StartMarker)
-	binary.Write(&buf, binary.LittleEndian, f.PayloadLength)
-	binary.Write(&buf, binary.LittleEndian, inv.Meta.ReqControlCode)
-	binary.Write(&buf, binary.LittleEndian, f.SerialNumber)
-	binary.Write(&buf, binary.LittleEndian, f.DeviceSN)
+
+	if err := binary.Write(&buf, binary.LittleEndian, f.PayloadLength); err != nil {
+		return nil, fmt.Errorf("f.PayloadLength buf write failed - %w", err)
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, inv.Meta.ReqControlCode); err != nil {
+		return nil, fmt.Errorf("inv.Meta.ReqControlCode buf write failed - %w", err)
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, f.SerialNumber); err != nil {
+		return nil, fmt.Errorf("f.SerialNumber buf write failed - %w", err)
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, f.DeviceSN); err != nil {
+		return nil, fmt.Errorf("f.DeviceSN buf write failed - %w", err)
+	}
+
 	buf.Write(f.Payload)
 	buf.WriteByte(calcCheckSum8(buf.Bytes()[1:])) // checksum (without start byte)
 	buf.WriteByte(inv.Meta.EndMarker)

@@ -37,7 +37,7 @@ func (inv *InverterLogger) NewWriteRequestPayload(registerAddress uint16, values
 	}
 }
 
-func (w *WriteRequestPayload) marshalBusinessData() []byte {
+func (w *WriteRequestPayload) marshalBusinessData() ([]byte, error) {
 	var buf bytes.Buffer
 
 	// According to Modbus specification, function 0x10:
@@ -52,22 +52,32 @@ func (w *WriteRequestPayload) marshalBusinessData() []byte {
 	buf.WriteByte(w.DeviceAddress)
 	buf.WriteByte(w.FunctionCode)
 
-	binary.Write(&buf, binary.BigEndian, w.RegisterAddress)
+	if err := binary.Write(&buf, binary.BigEndian, w.RegisterAddress); err != nil {
+		return nil, fmt.Errorf("w.RegisterAddress binary Write failed: %w", err)
+	}
 
 	quantity := uint16(len(w.RegisterValues))
-	binary.Write(&buf, binary.BigEndian, quantity)
+
+	if err := binary.Write(&buf, binary.BigEndian, quantity); err != nil {
+		return nil, fmt.Errorf("quantity binary Write failed: %w", err)
+	}
 
 	byteCount := uint8(quantity * 2)
 	buf.WriteByte(byteCount)
 
 	for _, val := range w.RegisterValues {
-		binary.Write(&buf, binary.BigEndian, val)
+		if err := binary.Write(&buf, binary.BigEndian, val); err != nil {
+			return nil, fmt.Errorf("register value binary Write failed: %w", err)
+		}
 	}
 
 	crc := calcCRC16Modbus(buf.Bytes())
-	binary.Write(&buf, binary.LittleEndian, crc)
 
-	return buf.Bytes()
+	if err := binary.Write(&buf, binary.LittleEndian, crc); err != nil {
+		return nil, fmt.Errorf("CRC16 binary Write failed: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (w *WriteRequestPayload) MarshalBinary() ([]byte, error) {
@@ -91,7 +101,13 @@ func (w *WriteRequestPayload) MarshalBinary() ([]byte, error) {
 	}
 
 	// Add business data to record registers
-	buf.Write(w.marshalBusinessData())
+
+	businessData, err := w.marshalBusinessData()
+	if err != nil {
+		return nil, fmt.Errorf("MarshalBinary w.marshalBusinessData failed: %w", err)
+	}
+
+	buf.Write(businessData)
 
 	return buf.Bytes(), nil
 }
@@ -138,10 +154,10 @@ func (inv *InverterLogger) parseWriteResponse(responsePayload []byte, values []i
 	}
 
 	// Determine the extra bytes after the Modbus response
-	remainingBytes := len(responsePayload) - (startIndex + 8)
-	if remainingBytes > 0 {
-		// I don't know what we should do if some bytes left
-	}
+	// remainingBytes := len(responsePayload) - (startIndex + 8)
+	// if remainingBytes > 0 {
+	// I don't know what we should do if some bytes left
+	// }
 
 	// Check the correctness of the answer
 	if deviceAddress != 0x01 || functionCode != 0x10 {

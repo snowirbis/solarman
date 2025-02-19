@@ -68,6 +68,10 @@ func (inv *InverterLogger) GetDateTime(startRegister int) (time.Time, error) {
 
 	invDateTime, err := inv.BytesToLocalTime([]int{int(yymm), int(hhmm), int(mmss)})
 
+	if err != nil {
+		return time.Time{}, err
+	}
+
 	return invDateTime, nil
 
 }
