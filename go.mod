@@ -1,4 +1,4 @@
-module inverterlogger
+module solarman
 
 go 1.18
 
