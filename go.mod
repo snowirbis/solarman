@@ -1,4 +1,4 @@
-module solarman
+module github.com/snowirbis/solarman
 
 go 1.18
 
