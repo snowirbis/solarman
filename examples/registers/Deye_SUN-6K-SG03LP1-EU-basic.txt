@@ -1,0 +1,54 @@
+Registers for Deye SUN-6K-SG03LP1-EU
+=======================================================================
+---------------------
+Date and Time:
+---------------------
+22 23 24 (0x16 0x17 0x18)
+
+---------------------
+Load:
+---------------------
+178 (B2) - Load consumption (W / 1)
+157 (9D) - Load voltage (V / 10)
+
+---------------------
+Status:
+---------------------
+59 (3B) - Device status
+
+0 - Stand-by
+1 - Self-check
+2 - Normal
+3 - Fault
+
+---------------------
+Grid:
+---------------------
+194 (C2) - Grid status
+
+0 - Off-grid
+1 - On-grid
+169 (A9) - Grid consumption (W / 1)
+150 (96) - Grid voltage (V / 10)
+
+---------------------
+Battery:
+---------------------
+189 (BD) - Battery status (???)
+
+0 - Charging
+1 - Stand-by
+2 - Discharging
+184 (B8) - Battery charge (%)
+191 (BF) - Battery current (signed(A) * 0.01)
+182 (B6) - Battery temperature ((C - 1000) * 0.1)
+
+---------------------
+Solar:
+---------------------
+109 (6D) - String 1 voltage (V * 0.1)
+111 (6F) - String 2 voltage (V * 0.1)
+186 (BA) - String 1 power (W)
+187 (BB) - String 2 power (W)
+
+=======================================================================
