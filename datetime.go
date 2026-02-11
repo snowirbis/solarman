@@ -11,7 +11,9 @@ import (
 // - register 23: high byte – day, low byte – hour;
 // - register 24: high byte – minutes, low byte – seconds.
 
-func (inv *InverterLogger) LocalTimeToBytes(timeDate time.Time) []int {
+/* private methods */
+
+func (inv *InverterLogger) localTimeToBytes(timeDate time.Time) []int {
 
 	year := timeDate.Year()
 	month := int(timeDate.Month())
@@ -28,7 +30,7 @@ func (inv *InverterLogger) LocalTimeToBytes(timeDate time.Time) []int {
 	return []int{yearMonth, dayHour, minuteSecond}
 }
 
-func (inv *InverterLogger) BytesToLocalTime(regs []int) (time.Time, error) {
+func (inv *InverterLogger) bytesToLocalTime(regs []int) (time.Time, error) {
 	if len(regs) != 3 {
 		return time.Time{}, Err(inv, "BytesToLocalTime", fmt.Sprintf("expected slice of 3 elements, got %d", len(regs)), nil)
 	}
@@ -50,6 +52,8 @@ func (inv *InverterLogger) BytesToLocalTime(regs []int) (time.Time, error) {
 	return t, nil
 }
 
+/* Public methods */
+
 func (inv *InverterLogger) GetDateTime(startRegister int) (time.Time, error) {
 
 	registers, err := inv.Read(startRegister, 3)
@@ -66,7 +70,7 @@ func (inv *InverterLogger) GetDateTime(startRegister int) (time.Time, error) {
 	hhmm := registers[startRegister+1]
 	mmss := registers[startRegister+2]
 
-	invDateTime, err := inv.BytesToLocalTime([]int{int(yymm), int(hhmm), int(mmss)})
+	invDateTime, err := inv.bytesToLocalTime([]int{int(yymm), int(hhmm), int(mmss)})
 
 	if err != nil {
 		return time.Time{}, err
@@ -78,7 +82,7 @@ func (inv *InverterLogger) GetDateTime(startRegister int) (time.Time, error) {
 
 func (inv *InverterLogger) SetDateTime(startRegister int, setTime time.Time) (int, int, time.Time, error) {
 
-	inverterTime := inv.LocalTimeToBytes(setTime)
+	inverterTime := inv.localTimeToBytes(setTime)
 
 	cnt, start, err := inv.Write(startRegister, inverterTime)
 
@@ -91,7 +95,7 @@ func (inv *InverterLogger) SetDateTime(startRegister int, setTime time.Time) (in
 		return 0, 0, time.Time{}, fmt.Errorf("SetDateTime: expected to write %d registers, wrote %d", len(inverterTime)*2, cnt)
 	}
 
-	timeSet, err := inv.BytesToLocalTime(inverterTime)
+	timeSet, err := inv.bytesToLocalTime(inverterTime)
 	if err != nil {
 		return 0, 0, time.Time{}, err
 	}

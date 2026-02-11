@@ -23,7 +23,7 @@ type ReadRequestPayload struct {
 	RegCount      uint16 // number of registers to read
 }
 
-func (inv *InverterLogger) NewReadPayload(startReg, regCount uint16) *ReadRequestPayload {
+func (inv *InverterLogger) NewReadRequestPayload(startReg, regCount uint16) *ReadRequestPayload {
 	return &ReadRequestPayload{
 		FrameType:     0x02,
 		SensorType:    0x0000,
