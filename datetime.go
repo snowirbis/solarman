@@ -32,7 +32,7 @@ func (inv *InverterLogger) localTimeToBytes(timeDate time.Time) []int {
 
 func (inv *InverterLogger) bytesToLocalTime(regs []int) (time.Time, error) {
 	if len(regs) != 3 {
-		return time.Time{}, Err(inv, "BytesToLocalTime", fmt.Sprintf("expected slice of 3 elements, got %d", len(regs)), nil)
+		return time.Time{}, inv.error("BytesToLocalTime", fmt.Sprintf("expected slice of 3 elements, got %d", len(regs)), nil)
 	}
 
 	yearOffset := regs[0] >> 8
