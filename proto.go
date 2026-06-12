@@ -26,6 +26,14 @@ type InverterLogger struct {
 	conn           net.Conn
 	connID         uint64
 	connNext       uint64
+
+	// OnUnsolicited, if set, is invoked for every frame received from the logger
+	// whose control code is not the expected response control code — e.g. the
+	// logger's periodic heartbeat (0x4710) or data-report frames. Such frames are
+	// skipped and reading continues until the matching response arrives or the
+	// read deadline expires. The callback runs while the internal lock is held,
+	// so it must not call back into the logger.
+	OnUnsolicited func(controlCode uint16, frame []byte)
 }
 
 func Init(address string, sn uint32, timeout int) *InverterLogger {
@@ -112,17 +120,79 @@ func (inv *InverterLogger) do(requestFrame []byte) ([]byte, error) {
 		return nil, inv.error("conn.Write", "write failed", err)
 	}
 
-	reply := make([]byte, 512)
-	n, err := inv.conn.Read(reply)
-	if err != nil {
-		inv.closeConn(inv.closeReason("read", err))
-		return nil, inv.error("conn.Read", "read failed", err)
+	// The logger multiplexes several kinds of frames onto the same stream:
+	//   * the Modbus response we asked for,
+	//   * unsolicited heartbeat (control code 0x4710) and data-report frames,
+	//   * stale/duplicate responses that lag the request stream.
+	// It echoes the request's first sequence byte in the matching response, so we
+	// match on both the control code and that byte. This skips heartbeats and,
+	// crucially, never returns a stale or wrong-length response (which otherwise
+	// surfaces as a desynced read or a payload EOF). Reading continues until the
+	// matching response arrives or the deadline expires.
+	wantSeq := requestFrame[5] // first sequence byte, echoed back by the logger
+	deadline := time.Now().Add(inv.Timeout)
+	for {
+		_ = inv.conn.SetReadDeadline(deadline)
+
+		frame, err := inv.readFrame()
+		if err != nil {
+			inv.closeConn(inv.closeReason("read", err))
+			return nil, inv.error("conn.Read", "read failed", err)
+		}
+
+		controlCode := binary.LittleEndian.Uint16(frame[3:5])
+		if controlCode == inv.Meta.ResControlCode && frame[5] == wantSeq {
+			inv.debug("net.reply", "RECD", frame)
+			return frame, nil
+		}
+
+		// Not our response. Report frames whose control code is not the expected
+		// response (heartbeat / data report) through the optional hook; stale or
+		// duplicate same-control-code frames are dropped silently.
+		if controlCode != inv.Meta.ResControlCode {
+			inv.debug("net.reply", "SKIP-UNSOLICITED", frame)
+			if inv.OnUnsolicited != nil {
+				inv.OnUnsolicited(controlCode, frame)
+			}
+		} else {
+			inv.debug("net.reply", "SKIP-STALE", frame)
+		}
+
+		if !time.Now().Before(deadline) {
+			err := fmt.Errorf("timed out waiting for response to sequence 0x%02X", wantSeq)
+			inv.closeConn("read_timeout")
+			return nil, inv.error("conn.Read", "read failed", err)
+		}
+	}
+}
+
+// readFrame reads exactly one complete Solarman V5 frame from the connection,
+// using the length field to frame the read. The frame layout is:
+//
+//	start(1) length(2,LE) control(2,LE) sequence(2) deviceSN(4) payload(length) checksum(1) end(1)
+func (inv *InverterLogger) readFrame() ([]byte, error) {
+	const headerLen = 11 // start + length + control + sequence + deviceSN
+
+	header := make([]byte, headerLen)
+	if _, err := io.ReadFull(inv.conn, header); err != nil {
+		return nil, err
+	}
+	if header[0] != inv.Meta.StartMarker {
+		return nil, fmt.Errorf("expected 0x%X as start marker, got: 0x%X", inv.Meta.StartMarker, header[0])
 	}
 
-	reply = reply[:n]
-	inv.debug("net.reply", "RECD", reply)
+	payloadLen := binary.LittleEndian.Uint16(header[1:3])
+	rest := make([]byte, int(payloadLen)+2) // payload + checksum + end marker
+	if _, err := io.ReadFull(inv.conn, rest); err != nil {
+		return nil, err
+	}
 
-	return reply, nil
+	frame := append(header, rest...)
+	if last := frame[len(frame)-1]; last != inv.Meta.EndMarker {
+		return nil, fmt.Errorf("expected 0x%X as end marker, got: 0x%X", inv.Meta.EndMarker, last)
+	}
+
+	return frame, nil
 }
 
 func (inv *InverterLogger) debugConn(event string, extra string) {
