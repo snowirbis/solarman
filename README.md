@@ -8,6 +8,7 @@ Solarman is a Go package for reading and writing Modbus registers over TCP for S
 - Convert retrieved signed-values to float
 - Extended bytestream debug
 - Meta control to work with various invertors (set StartMarker EndMarker ReqControlCode ResControlCode)
+- Modbus device address of the inverter behind the logger, default 0x01 (SetDeviceAddress)
 
 ## Basic usage
 

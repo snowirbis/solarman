@@ -30,7 +30,7 @@ func (inv *InverterLogger) NewWriteRequestPayload(registerAddress uint16, values
 		DeliveryTime:    0x00000000,
 		PowerOnTime:     0x00000000,
 		OffsetTime:      0x00000000,
-		DeviceAddress:   0x01,
+		DeviceAddress:   inv.DeviceAddress,
 		FunctionCode:    0x10, // Write Multiple Registers
 		RegisterAddress: registerAddress,
 		RegisterValues:  values,
@@ -115,10 +115,10 @@ func (w *WriteRequestPayload) MarshalBinary() ([]byte, error) {
 // parseWriteResponse processes the server response in V5 format.
 
 func (inv *InverterLogger) parseWriteResponse(responsePayload []byte, values []int) (int, int, error) {
-	// Look for the start of the Modbus response (should contain 01 10)
+	// Look for the start of the Modbus response (device address, 0x10)
 	startIndex := -1
 	for i := 0; i < len(responsePayload)-2; i++ {
-		if responsePayload[i] == 0x01 && responsePayload[i+1] == 0x10 {
+		if responsePayload[i] == inv.DeviceAddress && responsePayload[i+1] == 0x10 {
 			startIndex = i
 			break
 		}
@@ -160,7 +160,7 @@ func (inv *InverterLogger) parseWriteResponse(responsePayload []byte, values []i
 	// }
 
 	// Check the correctness of the answer
-	if deviceAddress != 0x01 || functionCode != 0x10 {
+	if deviceAddress != inv.DeviceAddress || functionCode != 0x10 {
 		return 0, 0, fmt.Errorf("unexpected response: deviceAddress %d, functionCode %d", deviceAddress, functionCode)
 	}
 	if respQuantity != uint16(len(values)) {
