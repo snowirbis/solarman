@@ -30,7 +30,7 @@ func (inv *InverterLogger) NewReadRequestPayload(startReg, regCount uint16) *Rea
 		DeliveryTime:  0x00000000,
 		PowerOnTime:   0x00000000,
 		OffsetTime:    0x00000000,
-		DeviceAddress: 0x01,
+		DeviceAddress: inv.DeviceAddress,
 		FunctionCode:  0x03,
 		StartReg:      startReg,
 		RegCount:      regCount,

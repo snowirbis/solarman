@@ -18,6 +18,7 @@ import (
 type InverterLogger struct {
 	LoggerAddress  string
 	LoggerSerialN  uint32
+	DeviceAddress  uint8 // Modbus device address, defaults to 0x01
 	DebugEnable    bool
 	SequenceNumber uint32
 	Timeout        time.Duration
@@ -50,6 +51,7 @@ func Init(address string, sn uint32, timeout int) *InverterLogger {
 		SequenceNumber: 0,
 		LoggerAddress:  address,
 		LoggerSerialN:  sn,
+		DeviceAddress:  0x01,
 		Meta:           DefaultMeta,
 		Timeout:        time.Duration(timeout) * time.Second,
 	}
@@ -76,6 +78,13 @@ func (inv *InverterLogger) SetMeta(StartMarker byte, EndMarker byte, ReqControlC
 	inv.Meta.EndMarker = EndMarker
 	inv.Meta.ReqControlCode = ReqControlCode
 	inv.Meta.ResControlCode = ResControlCode
+}
+
+// SetDeviceAddress sets the Modbus device address of the inverter behind the logger.
+func (inv *InverterLogger) SetDeviceAddress(address uint8) {
+	inv.mu.Lock()
+	defer inv.mu.Unlock()
+	inv.DeviceAddress = address
 }
 
 func (inv *InverterLogger) SetDebug(enable bool) {
